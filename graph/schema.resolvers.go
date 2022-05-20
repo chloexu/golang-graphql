@@ -6,6 +6,7 @@ package graph
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/chloexu/hackernews/graph/generated"
 	"github.com/chloexu/hackernews/graph/model"
@@ -24,6 +25,8 @@ func (r *mutationResolver) CreateTodo(ctx context.Context, input model.CreateTod
 	todo.Text = input.Text
 	todo.UserID = input.UserID
 	todo.Done = false
+	currentTime := time.Now()
+	todo.CreatedAt = currentTime.Format("2006-01-02 15:04:05")
 	if todo.Done {
 		todo.Done = true
 	}
@@ -50,6 +53,12 @@ func (r *mutationResolver) UpdateTodo(ctx context.Context, input model.UpdateTod
 	}
 	if input.Done != nil {
 		todo.Done = *input.Done
+		if *input.Done == true {
+			currentTime := time.Now()
+			todo.CompletedAt = currentTime.Format("2006-01-02 15:04:05")
+		} else {
+			todo.CompletedAt = ""
+		}
 	}
 	r.Resolver.TodoStore[id] = todo
 	return &todo, nil
@@ -61,6 +70,24 @@ func (r *queryResolver) Todo(ctx context.Context, id string) (*model.Todo, error
 		return nil, fmt.Errorf("not found")
 	}
 	return &todo, nil
+}
+
+func (r *queryResolver) Todos(ctx context.Context, userID string) ([]*model.Todo, error) {
+	n := len(r.Resolver.TodoStore)
+	if n == 0 {
+		r.Resolver.TodoStore = make(map[string]model.Todo)
+	}
+	todos := make([]*model.Todo, 0)
+	for id := range r.Resolver.TodoStore {
+		todo, ok := r.Resolver.TodoStore[id]
+		if !ok {
+			return nil, fmt.Errorf("not found")
+		}
+		if todo.UserID == userID {
+			todos = append(todos, &todo)
+		}
+	}
+	return todos, nil
 }
 
 // Mutation returns generated.MutationResolver implementation.
