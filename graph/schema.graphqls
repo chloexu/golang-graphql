@@ -21,8 +21,8 @@ input CreateTodoInput {
 
 input UpdateTodoInput {
   id: ID!
-  text: String
-  done: Boolean
+  text: String!
+  done: Boolean!
 }
 
 type Mutation {
