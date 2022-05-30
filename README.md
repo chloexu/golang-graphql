@@ -18,5 +18,6 @@ $ export DBPASS=password
 
 
 ### go to project root directory and run server
+```
 go run .
-
+```
