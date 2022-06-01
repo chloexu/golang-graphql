@@ -270,7 +270,7 @@ input CreateTodoInput {
 
 input UpdateTodoInput {
   id: ID!
-  text: String!
+  text: String
   done: Boolean!
 }
 
@@ -2900,7 +2900,7 @@ func (ec *executionContext) unmarshalInputUpdateTodoInput(ctx context.Context, o
 			var err error
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("text"))
-			it.Text, err = ec.unmarshalNString2string(ctx, v)
+			it.Text, err = ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}

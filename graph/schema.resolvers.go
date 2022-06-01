@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/chloexu/hackernews/data"
 	"github.com/chloexu/hackernews/graph/generated"
 	"github.com/chloexu/hackernews/graph/model"
+	"github.com/chloexu/hackernews/repository"
 	"github.com/rs/xid"
 )
 
@@ -34,24 +34,33 @@ func (r *mutationResolver) CreateTodo(ctx context.Context, input model.CreateTod
 	// r.Resolver.TodoStore[nid] = todo
 	// return &todo, nil
 
-	var row data.TodoRow
+	var row repository.TodoRow
 	nid := xid.New().String()
 	row.ID = nid
 	row.Text = input.Text
 	row.UserID = input.UserID
 	row.Done = false
 	row.CreatedAt = time.Now()
-	row, err := data.AddTodo(row)
+	row.CompletedAt = time.Now()
+	// isSuccessful, err := data.AddTodo(row)
+	isSuccessful, err := r.Repo.AddTodo(row)
 	if err != nil {
-		return nil, fmt.Errorf("CreateTodo %v", err)
+		return nil, fmt.Errorf("CreateTodo failed %v", err)
+	}
+	if !isSuccessful {
+		return nil, fmt.Errorf("CreateTodo no record inserted")
+	}
+	inserted, err := r.Repo.TodoByID(nid)
+	if err != nil {
+		return nil, fmt.Errorf("CreateTodo failed to get todo %q %v", nid, err)
 	}
 	todo := &model.Todo{
-		ID:          row.ID,
-		Text:        row.Text,
-		UserID:      row.UserID,
-		Done:        row.Done,
-		CreatedAt:   row.CreatedAt.Format("2006-01-02 15:04:05"),
-		CompletedAt: "",
+		ID:          inserted.ID,
+		Text:        inserted.Text,
+		UserID:      inserted.UserID,
+		Done:        inserted.Done,
+		CreatedAt:   inserted.CreatedAt.Format("2006-01-02 15:04:05"),
+		CompletedAt: inserted.CompletedAt.Format("2006-01-02 15:04:05"),
 	}
 	return todo, nil
 }
@@ -84,10 +93,25 @@ func (r *mutationResolver) UpdateTodo(ctx context.Context, input model.UpdateTod
 	// }
 	// r.Resolver.TodoStore[id] = todo
 	// return &todo, nil
-
-	row, err := data.UpdateTodo(input)
+	var row repository.TodoRow
+	row.ID = input.ID
+	if input.Text != nil {
+		row.Text = *input.Text
+	} else {
+		row.Text = ""
+	}
+	row.Done = input.Done
+	// isSuccessful, err := data.UpdateTodo(input)
+	isSuccessful, err := r.Repo.UpdateTodo(row)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to update todo %q %v", input.ID, err)
+		return nil, fmt.Errorf("UpdateTodo failed to update todo %q, %v", input.ID, err)
+	}
+	if !isSuccessful {
+		return nil, fmt.Errorf("UpdateTodo no record to update")
+	}
+	row, err = r.Repo.TodoByID(input.ID)
+	if err != nil {
+		return nil, fmt.Errorf("UpdateTodo failed to get todo %q, %v", input.ID, err)
 	}
 	todo := &model.Todo{
 		ID:          row.ID,
@@ -95,11 +119,7 @@ func (r *mutationResolver) UpdateTodo(ctx context.Context, input model.UpdateTod
 		UserID:      row.UserID,
 		Done:        row.Done,
 		CreatedAt:   row.CreatedAt.Format("2006-01-02 15:04:05"),
-		CompletedAt: "",
-	}
-
-	if !row.CompletedAt.Time.IsZero() {
-		todo.CompletedAt = row.CompletedAt.Time.Format("2006-01-02 15:04:05")
+		CompletedAt: row.CompletedAt.Format("2006-01-02 15:04:05"),
 	}
 
 	return todo, nil
@@ -115,9 +135,10 @@ func (r *queryResolver) Todo(ctx context.Context, id string) (*model.Todo, error
 	// END - USING IN-MEMORY STORE
 
 	// START - USING LOCAL DB
-	row, err := data.TodoByID(id)
+	// row, err := data.TodoByID(id)
+	row, err := r.Repo.TodoByID(id)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to retrieve TodoByID %q %v", id, err)
+		return nil, fmt.Errorf("Todo Failed to retrieve TodoByID %q, %v", id, err)
 	}
 	todo := &model.Todo{ // ???
 		ID:          row.ID,
@@ -150,9 +171,10 @@ func (r *queryResolver) Todos(ctx context.Context, userID string) ([]*model.Todo
 	// END - USING IN-MEMORY STORE
 
 	// START - USING LOCAL DB
-	todoRows, err := data.TodosByUser(userID)
+	// todoRows, err := data.TodosByUser(userID)
+	todoRows, err := r.Repo.TodosByUser(userID)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to retrieve todos: %v", err)
+		return nil, fmt.Errorf("Todos Failed to retrieve todos: %v", err)
 	}
 	todos := make([]*model.Todo, 0)
 	for _, row := range todoRows {
@@ -162,10 +184,7 @@ func (r *queryResolver) Todos(ctx context.Context, userID string) ([]*model.Todo
 			UserID:      row.UserID,
 			Done:        row.Done,
 			CreatedAt:   row.CreatedAt.Format("2006-01-02 15:04:05"),
-			CompletedAt: "",
-		}
-		if !row.CompletedAt.Time.IsZero() {
-			todo.CompletedAt = row.CompletedAt.Time.Format("2006-01-02 15:04:05")
+			CompletedAt: row.CompletedAt.Format("2006-01-02 15:04:05"),
 		}
 		todos = append(todos, todo)
 	}

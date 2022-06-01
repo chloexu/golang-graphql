@@ -7,9 +7,9 @@ import (
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
-	"github.com/chloexu/hackernews/data"
 	"github.com/chloexu/hackernews/graph"
 	"github.com/chloexu/hackernews/graph/generated"
+	"github.com/chloexu/hackernews/repository/mysql"
 )
 
 const defaultPort = "8080"
@@ -20,9 +20,12 @@ func main() {
 		port = defaultPort
 	}
 
-	srv := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: &graph.Resolver{}}))
+	repo, err := mysql.NewRepository()
+	if err != nil {
+		log.Fatalf("main new repository %v\n", err)
+	}
 
-	data.InitializeDB()
+	srv := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: &graph.Resolver{Repo: repo}}))
 
 	http.Handle("/", playground.Handler("GraphQL playground", "/query"))
 	http.Handle("/query", srv)

@@ -21,7 +21,7 @@ input CreateTodoInput {
 
 input UpdateTodoInput {
   id: ID!
-  text: String!
+  text: String
   done: Boolean!
 }
 
