@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"time"
 
 	repo "github.com/chloexu/hackernews/repository"
 	"github.com/go-sql-driver/mysql"
@@ -92,9 +91,8 @@ func (r *mysqlRepository) TodosByUser(userId string) ([]repo.TodoRow, error) {
 }
 
 func (r *mysqlRepository) AddTodo(row repo.TodoRow) (bool, error) {
-	result, err := r.db.Exec("INSERT INTO todos(id, text, done, user_id, created_at, completed_at) VALUES (?, ?, ?, ?, ?, ?)",
-		row.ID, row.Text, row.Done, row.UserID, time.Now(), time.Now())
-
+	result, err := r.db.Exec("INSERT INTO todos(id, text, done, user_id, created_at, completed_at) VALUES (?, ?, ?, ?, curdate(), curdate())",
+		row.ID, row.Text, row.Done, row.UserID)
 	if err != nil {
 		return false, fmt.Errorf("AddTodo exec : %v", err)
 	}
@@ -113,7 +111,7 @@ func (r *mysqlRepository) UpdateTodo(row repo.TodoRow) (bool, error) {
 	var result sql.Result
 	if row.Text != "" {
 		if row.Done {
-			r1, err := r.db.Exec("UPDATE todos SET text = ?, done = ?, completed_at = ? where id = ?", row.Text, row.Done, time.Now(), row.ID)
+			r1, err := r.db.Exec("UPDATE todos SET text = ?, done = ?, completed_at = curdate() where id = ?", row.Text, row.Done, row.ID)
 			if err != nil {
 				return false, fmt.Errorf("UpdateTodo exec : %v", err)
 			}
@@ -127,7 +125,7 @@ func (r *mysqlRepository) UpdateTodo(row repo.TodoRow) (bool, error) {
 		}
 	} else {
 		if row.Done {
-			r1, err := r.db.Exec("UPDATE todos SET done = ?, completed_at = ? where id = ?", row.Done, time.Now(), row.ID)
+			r1, err := r.db.Exec("UPDATE todos SET done = ?, completed_at = curdate() where id = ?", row.Done, row.ID)
 			if err != nil {
 				return false, fmt.Errorf("UpdateTodo exec : %v", err)
 			}
